@@ -3,6 +3,8 @@ export type AccountEntity = {
   name: string;
   offbudget: 0 | 1;
   closed: 0 | 1;
+  type?: 'checking' | 'savings' | 'credit' | 'investment' | null;
+  subtype?: string | null;
   sort_order: number;
   last_reconciled: string | null;
   tombstone: 0 | 1;
