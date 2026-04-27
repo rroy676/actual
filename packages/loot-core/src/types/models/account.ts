@@ -5,6 +5,7 @@ export type AccountEntity = {
   closed: 0 | 1;
   type?: 'checking' | 'savings' | 'credit' | 'investment' | null;
   subtype?: string | null;
+  credit_category?: string | null;
   sort_order: number;
   last_reconciled: string | null;
   tombstone: 0 | 1;
