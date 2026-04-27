@@ -383,6 +383,23 @@ async function createAccount({
     type,
   });
 
+  if (type === 'credit') {
+    const existingGroup = await db.first<{ id: string }>(
+      `SELECT id FROM category_groups WHERE UPPER(name) = ? AND tombstone = 0`,
+      ['CREDIT CARD PAYMENTS'],
+    );
+    const groupId = existingGroup
+      ? existingGroup.id
+      : await db.insertCategoryGroup({ name: 'Credit Card Payments' });
+
+    const categoryId = await db.insertCategory({
+      name,
+      cat_group: groupId,
+    });
+
+    await db.updateAccount({ id, credit_category: categoryId });
+  }
+
   await db.insertPayee({
     name: '',
     transfer_acct: id,
