@@ -79,7 +79,7 @@ export const schema = {
     last_sync: f('string'),
     type: f('string'),
     subtype: f('string'),
-    credit_category: f('id', { ref: 'categories' }),
+    credit_category: f('string'),
   },
   categories: {
     id: f('id'),
