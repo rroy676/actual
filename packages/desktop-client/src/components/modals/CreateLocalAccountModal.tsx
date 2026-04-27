@@ -9,10 +9,12 @@ import { FormError } from '@actual-app/components/form-error';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { InlineField } from '@actual-app/components/inline-field';
 import { Input } from '@actual-app/components/input';
+import { Select } from '@actual-app/components/select';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { toRelaxedNumber } from '@actual-app/core/shared/util';
+import type { AccountEntity } from '@actual-app/core/types/models';
 
 import { useCreateAccountMutation } from '#accounts';
 import { Link } from '#components/common/Link';
@@ -38,6 +40,9 @@ export function CreateLocalAccountModal() {
   const [name, setName] = useState('');
   const [offbudget, setOffbudget] = useState(false);
   const [balance, setBalance] = useState('0');
+  const [accountType, setAccountType] = useState<
+    NonNullable<AccountEntity['type']>
+  >('checking');
 
   const [nameError, setNameError] = useState(null);
   const [balanceError, setBalanceError] = useState(false);
@@ -70,6 +75,7 @@ export function CreateLocalAccountModal() {
           name,
           balance: toRelaxedNumber(balance),
           offBudget: offbudget,
+          type: accountType,
         },
         {
           onSuccess: id => {
@@ -111,6 +117,20 @@ export function CreateLocalAccountModal() {
                   {nameError}
                 </FormError>
               )}
+
+              <InlineField label={t('Account Type')} width="100%">
+                <Select
+                  options={[
+                    ['checking', t('Checking')],
+                    ['savings', t('Savings')],
+                    ['credit', t('Credit Card')],
+                    ['investment', t('Investment')],
+                  ]}
+                  value={accountType}
+                  onChange={setAccountType}
+                  style={{ flex: 1 }}
+                />
+              </InlineField>
 
               <View
                 style={{
