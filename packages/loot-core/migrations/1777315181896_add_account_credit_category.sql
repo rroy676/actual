@@ -1,0 +1,5 @@
+BEGIN TRANSACTION;
+
+ALTER TABLE accounts ADD COLUMN credit_category TEXT;
+
+COMMIT;

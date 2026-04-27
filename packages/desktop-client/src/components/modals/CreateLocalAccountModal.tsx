@@ -73,7 +73,10 @@ export function CreateLocalAccountModal() {
       createAccount.mutate(
         {
           name,
-          balance: toRelaxedNumber(balance),
+          balance:
+            accountType === 'credit' && !balance.startsWith('+')
+              ? -Math.abs(toRelaxedNumber(balance))
+              : toRelaxedNumber(balance),
           offBudget: offbudget,
           type: accountType,
         },
