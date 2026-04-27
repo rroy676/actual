@@ -296,6 +296,34 @@ export function handleCategoryChange(months, oldValue, newValue) {
 
       createCategoryFromBase(newValue, sheetName, prevSheetName, start, end);
 
+      const ccAcctRows = db.runQuery<{ id: string }>(
+        `SELECT id FROM accounts WHERE credit_category = ? AND tombstone = 0`,
+        [newValue.id],
+        true,
+      );
+      if (ccAcctRows.length > 0) {
+        const ccAccountId = ccAcctRows[0].id;
+        sheet.get().deleteCell(sheetName, `sum-amount-${newValue.id}`);
+        sheet.get().createDynamic(sheetName, `sum-amount-${newValue.id}`, {
+          initialValue: 0,
+          run: () => {
+            const rows = db.runQuery<{ amount: number }>(
+              `SELECT SUM(t.amount) as amount
+               FROM v_transactions_internal_alive t
+               LEFT JOIN accounts a ON a.id = t.account
+               WHERE t.date >= ${start} AND t.date <= ${end}
+                 AND t.account = '${ccAccountId}'
+                 AND t.category IS NOT NULL
+                 AND t.transfer_id IS NULL
+                 AND a.offbudget = 0`,
+              [],
+              true,
+            );
+            return rows[0]?.amount || 0;
+          },
+        });
+      }
+
       const id = newValue.id;
       const groupId = newValue.cat_group;
 

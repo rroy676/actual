@@ -105,6 +105,31 @@ function handleTransactionChange(transaction, changedFields) {
       .get()
       .recompute(resolveName(sheetName, 'sum-amount-' + transaction.category));
   }
+
+  if (
+    (changedFields.has('date') ||
+      changedFields.has('acct') ||
+      changedFields.has('amount') ||
+      changedFields.has('category') ||
+      changedFields.has('tombstone') ||
+      changedFields.has('transfer_id')) &&
+    transaction.date &&
+    transaction.acct
+  ) {
+    const acctRows = db.runQuery<{ credit_category: string | null }>(
+      `SELECT credit_category FROM accounts WHERE id = ? AND tombstone = 0`,
+      [transaction.acct],
+      true,
+    );
+    const creditCategory = acctRows[0]?.credit_category;
+    if (creditCategory) {
+      const month = monthUtils.monthFromDate(db.fromDateRepr(transaction.date));
+      const sheetName = monthUtils.sheetForMonth(month);
+      sheet
+        .get()
+        .recompute(resolveName(sheetName, 'sum-amount-' + creditCategory));
+    }
+  }
 }
 
 function handleCategoryMappingChange(months, oldValue, newValue) {
@@ -239,6 +264,16 @@ export async function createBudget(months) {
   );
   const categories = groups.flatMap(group => group.categories);
 
+  const ccAccounts = db.runQuery<{ credit_category: string; id: string }>(
+    `SELECT credit_category, id FROM accounts
+     WHERE credit_category IS NOT NULL AND tombstone = 0`,
+    [],
+    true,
+  );
+  const ccCategoryToAccount = new Map(
+    ccAccounts.map(a => [a.credit_category, a.id]),
+  );
+
   sheet.startTransaction();
   const meta = sheet.get().meta();
   meta.createdMonths = meta.createdMonths || new Set();
@@ -259,6 +294,32 @@ export async function createBudget(months) {
       categories.forEach(cat => {
         createCategory(cat, sheetName, prevSheetName, start, end);
       });
+
+      categories.forEach(cat => {
+        const ccAccountId = ccCategoryToAccount.get(cat.id);
+        if (ccAccountId) {
+          sheet.get().deleteCell(sheetName, `sum-amount-${cat.id}`);
+          sheet.get().createDynamic(sheetName, `sum-amount-${cat.id}`, {
+            initialValue: 0,
+            run: () => {
+              const rows = db.runQuery<{ amount: number }>(
+                `SELECT SUM(t.amount) as amount
+                 FROM v_transactions_internal_alive t
+                 LEFT JOIN accounts a ON a.id = t.account
+                 WHERE t.date >= ${start} AND t.date <= ${end}
+                   AND t.account = '${ccAccountId}'
+                   AND t.category IS NOT NULL
+                   AND t.transfer_id IS NULL
+                   AND a.offbudget = 0`,
+                [],
+                true,
+              );
+              return rows[0]?.amount || 0;
+            },
+          });
+        }
+      });
+
       groups.forEach(group => {
         if (budgetType === 'envelope') {
           envelopeBudget.createCategoryGroup(group, sheetName);
