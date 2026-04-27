@@ -77,6 +77,9 @@ export const schema = {
     account_sync_source: f('string'),
     last_reconciled: f('string'),
     last_sync: f('string'),
+    type: f('string'),
+    subtype: f('string'),
+    credit_category: f('id', { ref: 'categories' }),
   },
   categories: {
     id: f('id'),
