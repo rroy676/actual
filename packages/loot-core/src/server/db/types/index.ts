@@ -25,6 +25,7 @@ export type DbAccount = {
   last_reconciled?: string | null;
   last_sync?: string | null;
   credit_category?: string | null;
+  credit_category_since?: string | null;
 };
 
 export type DbBank = {

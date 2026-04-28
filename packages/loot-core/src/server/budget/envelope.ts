@@ -296,17 +296,22 @@ export function handleCategoryChange(months, oldValue, newValue) {
 
       createCategoryFromBase(newValue, sheetName, prevSheetName, start, end);
 
-      const ccAcctRows = db.runQuery<{ id: string }>(
-        `SELECT id FROM accounts WHERE credit_category = ? AND tombstone = 0`,
+      const ccAcctRows = db.runQuery<{
+        id: string;
+        credit_category_since: string | null;
+      }>(
+        `SELECT id, credit_category_since FROM accounts WHERE credit_category = ? AND tombstone = 0`,
         [newValue.id],
         true,
       );
       if (ccAcctRows.length > 0) {
         const ccAccountId = ccAcctRows[0].id;
+        const ccSince = ccAcctRows[0].credit_category_since;
         sheet.get().deleteCell(sheetName, `sum-amount-${newValue.id}`);
         sheet.get().createDynamic(sheetName, `sum-amount-${newValue.id}`, {
           initialValue: 0,
           run: () => {
+            if (ccSince && month < ccSince) return 0;
             const budgetTable =
               db.runQuery<{ value: string }>(
                 `SELECT value FROM preferences WHERE id = 'budgetType'`,

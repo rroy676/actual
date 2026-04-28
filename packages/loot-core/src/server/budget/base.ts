@@ -99,6 +99,12 @@ function handleAccountChange(months, oldValue, newValue) {
       sheet.get().createDynamic(sheetName, `sum-amount-${creditCategoryId}`, {
         initialValue: 0,
         run: () => {
+          const since = db.runQuery<{ credit_category_since: string | null }>(
+            `SELECT credit_category_since FROM accounts WHERE id = '${ccAccountId}'`,
+            [],
+            true,
+          )[0]?.credit_category_since;
+          if (since && month < since) return 0;
           const budgetTable =
             db.runQuery<{ value: string }>(
               `SELECT value FROM preferences WHERE id = 'budgetType'`,
@@ -347,14 +353,21 @@ export async function createBudget(months) {
   );
   const categories = groups.flatMap(group => group.categories);
 
-  const ccAccounts = db.runQuery<{ credit_category: string; id: string }>(
-    `SELECT credit_category, id FROM accounts
+  const ccAccounts = db.runQuery<{
+    credit_category: string;
+    id: string;
+    credit_category_since: string | null;
+  }>(
+    `SELECT credit_category, id, credit_category_since FROM accounts
      WHERE credit_category IS NOT NULL AND tombstone = 0`,
     [],
     true,
   );
   const ccCategoryToAccount = new Map(
-    ccAccounts.map(a => [a.credit_category, a.id]),
+    ccAccounts.map(a => [
+      a.credit_category,
+      { id: a.id, since: a.credit_category_since },
+    ]),
   );
 
   sheet.startTransaction();
@@ -379,12 +392,14 @@ export async function createBudget(months) {
       });
 
       categories.forEach(cat => {
-        const ccAccountId = ccCategoryToAccount.get(cat.id);
-        if (ccAccountId) {
+        const ccEntry = ccCategoryToAccount.get(cat.id);
+        if (ccEntry) {
+          const { id: ccAccountId, since: ccSince } = ccEntry;
           sheet.get().deleteCell(sheetName, `sum-amount-${cat.id}`);
           sheet.get().createDynamic(sheetName, `sum-amount-${cat.id}`, {
             initialValue: 0,
             run: () => {
+              if (ccSince && month < ccSince) return 0;
               const budgetTable =
                 db.runQuery<{ value: string }>(
                   `SELECT value FROM preferences WHERE id = 'budgetType'`,

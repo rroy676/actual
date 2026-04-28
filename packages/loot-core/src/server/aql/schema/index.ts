@@ -80,6 +80,7 @@ export const schema = {
     type: f('string'),
     subtype: f('string'),
     credit_category: f('string'),
+    credit_category_since: f('string'),
   },
   categories: {
     id: f('id'),

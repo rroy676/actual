@@ -115,6 +115,7 @@ async function getAccounts(): Promise<AccountEntity[]> {
         account_sync_source: dbAccount.account_sync_source ?? null,
         last_sync: dbAccount.last_sync ?? null,
         credit_category: dbAccount.credit_category ?? null,
+        credit_category_since: dbAccount.credit_category_since ?? null,
       }) satisfies AccountEntity,
   );
 }
@@ -386,7 +387,12 @@ export async function setupCCTracking(
     ? existingCategory.id
     : await db.insertCategory({ name: accountName, cat_group: groupId });
 
-  await db.updateAccount({ id: accountId, type: 'credit', credit_category: categoryId });
+  await db.updateAccount({
+    id: accountId,
+    type: 'credit',
+    credit_category: categoryId,
+    credit_category_since: monthUtils.currentMonth(),
+  });
 
   return categoryId;
 }
@@ -398,7 +404,7 @@ export async function removeCCTracking(accountId: string): Promise<void> {
   );
   if (!account?.credit_category) return;
 
-  await db.updateAccount({ id: accountId, type: null, credit_category: null });
+  await db.updateAccount({ id: accountId, type: null, credit_category: null, credit_category_since: null });
 }
 
 async function createAccount({
