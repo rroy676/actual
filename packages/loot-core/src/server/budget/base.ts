@@ -109,7 +109,13 @@ function handleAccountChange(months, oldValue, newValue) {
               : 'zero_budgets';
           const dbMonth = parseInt(month.replace('-', ''));
           const rows = db.runQuery<{ amount: number }>(
-            `SELECT SUM(MIN(COALESCE(b.amount, 0), ABS(COALESCE(cat_spend.total, 0)))) as amount
+            `SELECT SUM(MIN(COALESCE(b.amount, 0), ABS(COALESCE(cat_spend.total, 0))))
+             - COALESCE((
+               SELECT SUM(t2.amount) FROM v_transactions_internal_alive t2
+               WHERE t2.account = '${ccAccountId}'
+                 AND t2.date >= ${start} AND t2.date <= ${end}
+                 AND t2.transfer_id IS NOT NULL AND t2.amount > 0
+             ), 0) as amount
              FROM (
                SELECT t.category, SUM(t.amount) as total
                FROM v_transactions_internal_alive t
@@ -215,6 +221,17 @@ function handleBudgetChange(budget) {
     sheet
       .get()
       .set(`${sheetName}!long-goal-${budget.category}`, budget.long_goal);
+
+    const ccRows = db.runQuery<{ credit_category: string }>(
+      `SELECT credit_category FROM accounts WHERE credit_category IS NOT NULL AND tombstone = 0`,
+      [],
+      true,
+    );
+    ccRows.forEach(row => {
+      sheet
+        .get()
+        .recompute(resolveName(sheetName, 'sum-amount-' + row.credit_category));
+    });
   }
 }
 
@@ -360,7 +377,13 @@ export async function createBudget(months) {
                   : 'zero_budgets';
               const dbMonth = parseInt(month.replace('-', ''));
               const rows = db.runQuery<{ amount: number }>(
-                `SELECT SUM(MIN(COALESCE(b.amount, 0), ABS(COALESCE(cat_spend.total, 0)))) as amount
+                `SELECT SUM(MIN(COALESCE(b.amount, 0), ABS(COALESCE(cat_spend.total, 0))))
+                 - COALESCE((
+                   SELECT SUM(t2.amount) FROM v_transactions_internal_alive t2
+                   WHERE t2.account = '${ccAccountId}'
+                     AND t2.date >= ${start} AND t2.date <= ${end}
+                     AND t2.transfer_id IS NOT NULL AND t2.amount > 0
+                 ), 0) as amount
                  FROM (
                    SELECT t.category, SUM(t.amount) as total
                    FROM v_transactions_internal_alive t

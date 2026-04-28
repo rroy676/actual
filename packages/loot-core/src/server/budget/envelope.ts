@@ -317,7 +317,13 @@ export function handleCategoryChange(months, oldValue, newValue) {
                 : 'zero_budgets';
             const dbMonth = parseInt(month.replace('-', ''));
             const rows = db.runQuery<{ amount: number }>(
-              `SELECT SUM(MIN(COALESCE(b.amount, 0), ABS(COALESCE(cat_spend.total, 0)))) as amount
+              `SELECT SUM(MIN(COALESCE(b.amount, 0), ABS(COALESCE(cat_spend.total, 0))))
+               - COALESCE((
+                 SELECT SUM(t2.amount) FROM v_transactions_internal_alive t2
+                 WHERE t2.account = '${ccAccountId}'
+                   AND t2.date >= ${start} AND t2.date <= ${end}
+                   AND t2.transfer_id IS NOT NULL AND t2.amount > 0
+               ), 0) as amount
                FROM (
                  SELECT t.category, SUM(t.amount) as total
                  FROM v_transactions_internal_alive t
