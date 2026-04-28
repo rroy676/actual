@@ -73,6 +73,8 @@ export type AccountHandlers = {
   'simplefin-batch-sync': typeof simpleFinBatchSync;
   'transactions-import': typeof importTransactions;
   'account-unlink': typeof unlinkAccount;
+  'account-setup-cc-tracking': (arg: { id: string; name: string }) => Promise<void>;
+  'account-remove-cc-tracking': (arg: { id: string }) => Promise<void>;
 };
 
 async function updateAccount({
@@ -364,6 +366,41 @@ async function linkPluggyAiAccount({
   return 'ok';
 }
 
+export async function setupCCTracking(
+  accountId: string,
+  accountName: string,
+): Promise<string> {
+  const existingGroup = await db.first<{ id: string }>(
+    `SELECT id FROM category_groups WHERE UPPER(name) = ? AND tombstone = 0`,
+    ['CREDIT CARD PAYMENTS'],
+  );
+  const groupId = existingGroup
+    ? existingGroup.id
+    : await db.insertCategoryGroup({ name: 'Credit Card Payments' });
+
+  const existingCategory = await db.first<{ id: string }>(
+    `SELECT id FROM categories WHERE UPPER(name) = UPPER(?) AND cat_group = ? AND tombstone = 0`,
+    [accountName, groupId],
+  );
+  const categoryId = existingCategory
+    ? existingCategory.id
+    : await db.insertCategory({ name: accountName, cat_group: groupId });
+
+  await db.updateAccount({ id: accountId, type: 'credit', credit_category: categoryId });
+
+  return categoryId;
+}
+
+export async function removeCCTracking(accountId: string): Promise<void> {
+  const account = await db.first<{ credit_category: string | null }>(
+    `SELECT credit_category FROM accounts WHERE id = ? AND tombstone = 0`,
+    [accountId],
+  );
+  if (!account?.credit_category) return;
+
+  await db.updateAccount({ id: accountId, type: null, credit_category: null });
+}
+
 async function createAccount({
   name,
   balance = 0,
@@ -385,20 +422,7 @@ async function createAccount({
   });
 
   if (type === 'credit') {
-    const existingGroup = await db.first<{ id: string }>(
-      `SELECT id FROM category_groups WHERE UPPER(name) = ? AND tombstone = 0`,
-      ['CREDIT CARD PAYMENTS'],
-    );
-    const groupId = existingGroup
-      ? existingGroup.id
-      : await db.insertCategoryGroup({ name: 'Credit Card Payments' });
-
-    const categoryId = await db.insertCategory({
-      name,
-      cat_group: groupId,
-    });
-
-    await db.updateAccount({ id, credit_category: categoryId });
+    await setupCCTracking(id, name);
   }
 
   await db.insertPayee({
@@ -1322,3 +1346,15 @@ app.method('accounts-bank-sync', accountsBankSync);
 app.method('simplefin-batch-sync', simpleFinBatchSync);
 app.method('transactions-import', mutator(undoable(importTransactions)));
 app.method('account-unlink', mutator(unlinkAccount));
+app.method(
+  'account-setup-cc-tracking',
+  mutator(async ({ id, name }: { id: string; name: string }) => {
+    await setupCCTracking(id, name);
+  }),
+);
+app.method(
+  'account-remove-cc-tracking',
+  mutator(async ({ id }: { id: string }) => {
+    await removeCCTracking(id);
+  }),
+);

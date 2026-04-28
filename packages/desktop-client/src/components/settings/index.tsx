@@ -30,6 +30,7 @@ import { useDispatch, useSelector } from '#redux';
 import { AuthSettings } from './AuthSettings';
 import { Backups } from './Backups';
 import { BudgetTypeSettings } from './BudgetTypeSettings';
+import { CCTrackingSettings } from './CCTracking';
 import { CurrencySettings } from './Currency';
 import { EncryptionSettings } from './Encryption';
 import { ExperimentalFeatures } from './Experimental';
@@ -244,6 +245,7 @@ export function Settings() {
         <AuthSettings />
         <EncryptionSettings />
         <BudgetTypeSettings />
+        <CCTrackingSettings />
         {isElectron() && <Backups />}
         <ExportBudget />
         <AdvancedToggle>

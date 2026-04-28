@@ -139,6 +139,24 @@ function handleAccountChange(months, oldValue, newValue) {
       });
     });
   }
+
+  if (oldValue?.credit_category && !newValue.credit_category) {
+    const removedCategoryId = oldValue.credit_category;
+    months.forEach(month => {
+      const prevMonth = monthUtils.prevMonth(month);
+      const prevSheetName = monthUtils.sheetForMonth(prevMonth);
+      const { start, end } = monthUtils.bounds(month);
+      const sheetName = monthUtils.sheetForMonth(month);
+      sheet.get().deleteCell(sheetName, `sum-amount-${removedCategoryId}`);
+      createCategory(
+        { id: removedCategoryId },
+        sheetName,
+        prevSheetName,
+        start,
+        end,
+      );
+    });
+  }
 }
 
 function handleTransactionChange(transaction, changedFields) {
