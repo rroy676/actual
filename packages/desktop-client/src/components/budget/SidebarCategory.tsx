@@ -19,6 +19,7 @@ import { InputCell } from '#components/table';
 import { useContextMenu } from '#hooks/useContextMenu';
 import { useGlobalPref } from '#hooks/useGlobalPref';
 
+import { useEnvelopeBudget } from './envelope/EnvelopeBudgetContext';
 import { SidebarCategoryButtons } from './SidebarCategoryButtons';
 
 type SidebarCategoryProps = {
@@ -61,6 +62,8 @@ export function SidebarCategory({
   onHideNewCategory,
 }: SidebarCategoryProps) {
   const { t } = useTranslation();
+  const { ccPaymentCategories } = useEnvelopeBudget();
+  const isCCPayment = ccPaymentCategories.has(category.id);
   const [categoryExpandedStatePref] = useGlobalPref('categoryExpandedState');
   const categoryExpandedState = categoryExpandedStatePref ?? 0;
 
@@ -83,7 +86,10 @@ export function SidebarCategory({
       ref={triggerRef}
       onContextMenu={handleContextMenu}
     >
-      <TextOneLine data-testid="category-name">{category.name}</TextOneLine>
+      <TextOneLine data-testid="category-name">
+        {isCCPayment && <span style={{ marginRight: 4 }}>💳</span>}
+        {category.name}
+      </TextOneLine>
       <View style={{ flexShrink: 0, marginLeft: 5 }}>
         <Button
           variant="bare"

@@ -8,6 +8,7 @@ type EnvelopeBudgetContextDefinition = {
   onBudgetAction: (month: string, action: string, arg?: unknown) => void;
   onToggleSummaryCollapse: () => void;
   currentMonth: string;
+  ccPaymentCategories: Map<string, string>;
 };
 
 const EnvelopeBudgetContext = createContext<EnvelopeBudgetContextDefinition>({
@@ -21,6 +22,7 @@ const EnvelopeBudgetContext = createContext<EnvelopeBudgetContextDefinition>({
     );
   },
   currentMonth: 'unknown',
+  ccPaymentCategories: new Map(),
 });
 
 type EnvelopeBudgetProviderProps = Omit<
@@ -33,6 +35,7 @@ export function EnvelopeBudgetProvider({
   summaryCollapsed,
   onBudgetAction,
   onToggleSummaryCollapse,
+  ccPaymentCategories,
   children,
 }: EnvelopeBudgetProviderProps) {
   const currentMonth = monthUtils.currentMonth();
@@ -44,6 +47,7 @@ export function EnvelopeBudgetProvider({
         summaryCollapsed,
         onBudgetAction,
         onToggleSummaryCollapse,
+        ccPaymentCategories,
       }}
     >
       {children}

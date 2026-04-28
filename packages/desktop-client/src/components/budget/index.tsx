@@ -20,6 +20,7 @@ import {
   useSaveCategoryGroupMutation,
   useSaveCategoryMutation,
 } from '#budget';
+import { useAccounts } from '#hooks/useAccounts';
 import { useCategories } from '#hooks/useCategories';
 import { useGlobalPref } from '#hooks/useGlobalPref';
 import { useLocalPref } from '#hooks/useLocalPref';
@@ -54,6 +55,14 @@ export function Budget() {
   const [initialized, setInitialized] = useState(false);
   const { data: { grouped: categoryGroups } = { grouped: [] } } =
     useCategories();
+  const { data: accounts = [] } = useAccounts();
+  const ccPaymentCategories = useMemo(() => {
+    const map = new Map<string, string>();
+    accounts
+      .filter(a => a.credit_category)
+      .forEach(a => map.set(a.credit_category!, a.id));
+    return map;
+  }, [accounts]);
 
   const init = useEffectEvent(() => {
     async function run() {
@@ -210,6 +219,7 @@ export function Budget() {
         summaryCollapsed={summaryCollapsed}
         onBudgetAction={onBudgetAction}
         onToggleSummaryCollapse={onToggleCollapse}
+        ccPaymentCategories={ccPaymentCategories}
       >
         <AutoSizingBudgetTable
           type={budgetType}

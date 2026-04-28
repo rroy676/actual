@@ -35,6 +35,7 @@ import type { CategoryGroupMonthProps, CategoryMonthProps } from '..';
 
 import { BalanceMovementMenu } from './BalanceMovementMenu';
 import { BudgetMenu } from './BudgetMenu';
+import { useEnvelopeBudget } from './EnvelopeBudgetContext';
 import { IncomeMenu } from './IncomeMenu';
 
 export function useEnvelopeSheetName<
@@ -203,6 +204,8 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
 }: CategoryMonthProps) {
   const { t } = useTranslation();
   const format = useFormat();
+  const { ccPaymentCategories } = useEnvelopeBudget();
+  const isCCPayment = ccPaymentCategories.has(category.id);
 
   const budgetMenuTriggerRef = useRef(null);
   const balanceMenuTriggerRef = useRef(null);
@@ -378,7 +381,11 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
           focused={editing}
           width="flex"
           onExpose={() => onEdit(category.id, month)}
-          style={{ ...(editing && { zIndex: 100 }), ...styles.tnum }}
+          style={{
+            ...(editing && { zIndex: 100 }),
+            ...styles.tnum,
+            ...(isCCPayment && { opacity: 0.6 }),
+          }}
           textAlign="right"
           valueStyle={{
             cursor: 'default',
@@ -386,7 +393,7 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
             padding: '0 4px',
             borderRadius: 4,
             ':hover': {
-              boxShadow: 'inset 0 0 0 1px ' + theme.pageTextSubdued, //remove mobile color variable
+              boxShadow: 'inset 0 0 0 1px ' + theme.pageTextSubdued,
               backgroundColor: theme.budgetCurrentMonth,
             },
           }}
@@ -462,7 +469,9 @@ export const ExpenseCategoryMonth = memo(function ExpenseCategoryMonth({
                 className={css({
                   cursor: 'pointer',
                   ':hover': { textDecoration: 'underline' },
-                  ...makeAmountGrey(props.value),
+                  ...(isCCPayment
+                    ? { color: theme.pageTextPositive }
+                    : makeAmountGrey(props.value)),
                 })}
               />
             )}
