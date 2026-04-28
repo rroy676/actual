@@ -421,10 +421,6 @@ async function createAccount({
     type,
   });
 
-  if (type === 'credit') {
-    await setupCCTracking(id, name);
-  }
-
   await db.insertPayee({
     name: '',
     transfer_acct: id,
