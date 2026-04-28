@@ -85,6 +85,54 @@ function handleAccountChange(months, oldValue, newValue) {
       });
     });
   }
+
+  if (
+    newValue.credit_category &&
+    (!oldValue || oldValue.credit_category !== newValue.credit_category)
+  ) {
+    const ccAccountId = newValue.id;
+    const creditCategoryId = newValue.credit_category;
+    months.forEach(month => {
+      const { start, end } = monthUtils.bounds(month);
+      const sheetName = monthUtils.sheetForMonth(month);
+      sheet.get().deleteCell(sheetName, `sum-amount-${creditCategoryId}`);
+      sheet.get().createDynamic(sheetName, `sum-amount-${creditCategoryId}`, {
+        initialValue: 0,
+        run: () => {
+          const budgetTable =
+            db.runQuery<{ value: string }>(
+              `SELECT value FROM preferences WHERE id = 'budgetType'`,
+              [],
+              true,
+            )[0]?.value === 'tracking'
+              ? 'reflect_budgets'
+              : 'zero_budgets';
+          const dbMonth = parseInt(month.replace('-', ''));
+          const rows = db.runQuery<{ amount: number }>(
+            `SELECT SUM(MIN(COALESCE(b.amount, 0), ABS(COALESCE(cat_spend.total, 0)))) as amount
+             FROM (
+               SELECT t.category, SUM(t.amount) as total
+               FROM v_transactions_internal_alive t
+               LEFT JOIN accounts a ON a.id = t.account
+               WHERE t.date >= ${start} AND t.date <= ${end}
+                 AND t.account = '${ccAccountId}'
+                 AND t.category IS NOT NULL
+                 AND t.transfer_id IS NULL
+                 AND COALESCE(t.starting_balance_flag, 0) = 0
+                 AND a.offbudget = 0
+               GROUP BY t.category
+             ) cat_spend
+             LEFT JOIN ${budgetTable} b
+               ON b.category = cat_spend.category
+               AND b.month = ${dbMonth}`,
+            [],
+            true,
+          );
+          return rows[0]?.amount || 0;
+        },
+      });
+    });
+  }
 }
 
 function handleTransactionChange(transaction, changedFields) {
@@ -302,15 +350,32 @@ export async function createBudget(months) {
           sheet.get().createDynamic(sheetName, `sum-amount-${cat.id}`, {
             initialValue: 0,
             run: () => {
+              const budgetTable =
+                db.runQuery<{ value: string }>(
+                  `SELECT value FROM preferences WHERE id = 'budgetType'`,
+                  [],
+                  true,
+                )[0]?.value === 'tracking'
+                  ? 'reflect_budgets'
+                  : 'zero_budgets';
+              const dbMonth = parseInt(month.replace('-', ''));
               const rows = db.runQuery<{ amount: number }>(
-                `SELECT SUM(t.amount) as amount
-                 FROM v_transactions_internal_alive t
-                 LEFT JOIN accounts a ON a.id = t.account
-                 WHERE t.date >= ${start} AND t.date <= ${end}
-                   AND t.account = '${ccAccountId}'
-                   AND t.category IS NOT NULL
-                   AND t.transfer_id IS NULL
-                   AND a.offbudget = 0`,
+                `SELECT SUM(MIN(COALESCE(b.amount, 0), ABS(COALESCE(cat_spend.total, 0)))) as amount
+                 FROM (
+                   SELECT t.category, SUM(t.amount) as total
+                   FROM v_transactions_internal_alive t
+                   LEFT JOIN accounts a ON a.id = t.account
+                   WHERE t.date >= ${start} AND t.date <= ${end}
+                     AND t.account = '${ccAccountId}'
+                     AND t.category IS NOT NULL
+                     AND t.transfer_id IS NULL
+                     AND COALESCE(t.starting_balance_flag, 0) = 0
+                     AND a.offbudget = 0
+                   GROUP BY t.category
+                 ) cat_spend
+                 LEFT JOIN ${budgetTable} b
+                   ON b.category = cat_spend.category
+                   AND b.month = ${dbMonth}`,
                 [],
                 true,
               );
